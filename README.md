@@ -12,4 +12,4 @@ The GitHub Actions workflow builds a debug APK automatically on pushes to `main`
 
 Open **Actions → Build APK**. The generated `app-debug.apk` is uploaded as a workflow artifact.
 
-<!-- Trigger clean project rebuild -->
+<!-- Trigger SDK verification rebuild -->
