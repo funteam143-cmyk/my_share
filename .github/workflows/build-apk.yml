@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout
@@ -26,10 +29,11 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Install Android SDK 36
+      - name: Verify Android SDK
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          test -d "$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" | tail -10
+          ls "$ANDROID_HOME/build-tools" | tail -10
 
       - name: Verify project structure
         run: |
