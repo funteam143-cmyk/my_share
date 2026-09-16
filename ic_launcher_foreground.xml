@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered within the 66dp safe zone (21 to 87 on 108dp canvas) -->
+    <!-- Top-right pointing fast transfer arrow (Cyan to Blue) -->
+    <path
+        android:pathData="M32,44 C32,36 38,32 46,32 L68,32 L58,22 L65,22 L78,35 L65,48 L58,48 L68,38 L46,38 C42,38 38,40 38,44 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="32"
+                android:startY="35"
+                android:endX="78"
+                android:endY="35"
+                android:type="linear">
+                <item android:color="#00F5D4" android:offset="0.0" />
+                <item android:color="#00BBF9" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Bottom-left pointing fast transfer arrow (Blue to Violet) -->
+    <path
+        android:pathData="M76,64 C76,72 70,76 62,76 L40,76 L50,86 L43,86 L30,73 L43,60 L50,60 L40,70 L62,70 C66,70 70,68 70,64 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="76"
+                android:startY="73"
+                android:endX="30"
+                android:endY="73"
+                android:type="linear">
+                <item android:color="#38B000" android:offset="0.0" />
+                <item android:color="#00F5D4" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Central high-speed lightning spark / core node -->
+    <path
+        android:pathData="M55,46 L49,54 L54,54 L52,62 L59,53 L54,53 Z"
+        android:fillColor="#FFFFFF" />
+</vector>
