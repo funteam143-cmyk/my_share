@@ -166,7 +166,7 @@ class P2pDiscoveryManager(
             if (peerId == localDeviceId) return // Ignore self
 
             val peerName = parts[2]
-            val peerIp = parts[3].ifEmpty { senderHost }
+            val peerIp = senderHost.ifEmpty { parts[3] }
             val peerPort = parts[4].toIntOrNull() ?: NetworkUtils.DEFAULT_TRANSFER_PORT
 
             val updated = PeerDevice(
