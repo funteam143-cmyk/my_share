@@ -225,6 +225,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         discoveryManager.addDirectPeer(ip)
     }
 
+    fun connectFromQr(payload: String) {
+        val filesToSend = _selectedFiles.value
+        if (filesToSend.isEmpty()) return
+
+        val parts = payload.split("|")
+        if (parts.size < 4 || parts[0] != "FK_SHARE_QR") return
+
+        val host = parts[1].trim()
+        val port = parts[2].toIntOrNull() ?: NetworkUtils.DEFAULT_TRANSFER_PORT
+        val name = parts[3].trim().ifEmpty { "FK Share Receiver" }
+        if (host.isEmpty() || port !in 1..65535) return
+
+        connectAndSend(
+            PeerDevice(
+                id = "qr_${host.replace(".", "_")}_$port",
+                name = name,
+                hostAddress = host,
+                port = port,
+                connectionType = com.example.data.model.ConnectionType.LOCAL_WIFI,
+                lastSeen = System.currentTimeMillis()
+            )
+        )
+    }
+
     private fun loadLocalMedia(tab: MediaTab) {
         if (tab == MediaTab.ALL) {
             _scannedMedia.value = emptyList()
