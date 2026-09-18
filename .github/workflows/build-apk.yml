@@ -53,4 +53,4 @@ jobs:
           name: FK-Share-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-# Rebuilt from the uploaded project archive.
+# QR connection build requested; rebuild this exact main-branch version.
