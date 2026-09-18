@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -44,10 +45,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +61,7 @@ import com.example.data.model.TransferProgressState
 import com.example.ui.theme.CyanGlow
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.SuccessGreen
+import com.example.util.QrCodeUtils
 import com.example.util.StorageHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +84,14 @@ fun ReceiverWaitingScreen(
         ),
         label = "pulse"
     )
+
+    val qrBitmap = remember(localIp, localDeviceName) {
+        if (localIp != "Offline") {
+            QrCodeUtils.createQrBitmap(
+                "FK_SHARE_QR|$localIp|52346|$localDeviceName"
+            ).asImageBitmap()
+        } else null
+    }
 
     Scaffold(
         topBar = {
@@ -159,7 +171,41 @@ fun ReceiverWaitingScreen(
                 lineHeight = 20.sp
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(22.dp))
+
+            if (qrBitmap != null) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier.size(250.dp)
+                ) {
+                    Image(
+                        bitmap = qrBitmap,
+                        contentDescription = "FK Share receiver QR code",
+                        modifier = Modifier.fillMaxSize().padding(12.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Sender phone me Scan QR dabaye",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Dono phones same Wi-Fi ya hotspot par hone chahiye.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            } else {
+                Text(
+                    text = "Wi-Fi connect karein taaki receiver QR code ban sake.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             // Device Info Card
             Card(
