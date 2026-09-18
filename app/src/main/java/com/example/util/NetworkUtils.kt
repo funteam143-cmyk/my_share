@@ -38,8 +38,8 @@ object NetworkUtils {
         val lower = name.lowercase(Locale.ROOT)
         return when {
             lower.contains("p2p") -> 3
-            lower.contains("wlan") -> 2
-            lower.contains("ap") || lower.contains("swlan") -> 1
+            lower.contains("wlan") -> 5
+            lower.contains("ap") || lower.contains("swlan") -> 4
             else -> 0
         }
     }
