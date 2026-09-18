@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiFind
 import androidx.compose.material3.AlertDialog
@@ -74,6 +75,7 @@ fun DiscoveryScreen(
     selectedFiles: List<TransferItem>,
     onConnectPeer: (PeerDevice) -> Unit,
     onAddDirectPeer: (String) -> Unit,
+    onScanQr: () -> Unit,
     onBack: () -> Unit
 ) {
     var showDirectIpDialog by remember { mutableStateOf(false) }
@@ -130,6 +132,15 @@ fun DiscoveryScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = onScanQr,
+                        modifier = Modifier.testTag("scan_qr_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "Scan receiver QR"
+                        )
+                    }
                     IconButton(
                         onClick = { showDirectIpDialog = true },
                         modifier = Modifier.testTag("direct_ip_button")
@@ -215,7 +226,7 @@ fun DiscoveryScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Ensure receiver tapped 'Receive' or is on same Wi-Fi / Hotspot",
+                text = "Receiver par QR dikhega — dono phones same Wi-Fi / Hotspot par rakhein",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -263,6 +274,19 @@ fun DiscoveryScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = onScanQr,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Scan Receiver QR")
+                                }
                                 TextButton(
                                     onClick = { showDirectIpDialog = true }
                                 ) {
