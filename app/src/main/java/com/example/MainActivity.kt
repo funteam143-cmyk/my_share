@@ -1,6 +1,7 @@
 package com.example
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -29,6 +30,7 @@ import com.example.ui.screens.MainScreen
 import com.example.ui.screens.ReceiverWaitingScreen
 import com.example.ui.screens.TransferScreen
 import com.example.ui.theme.MyApplicationTheme
+import com.journeyapps.barcodescanner.IntentIntegrator
 
 class MainActivity : ComponentActivity() {
 
@@ -65,6 +67,17 @@ fun AppNavigation(viewModel: MainViewModel) {
     val peers by viewModel.peers.collectAsState()
     val progressState by viewModel.transferProgress.collectAsState()
     val lastCompleted by viewModel.lastCompletedTransfer.collectAsState()
+
+    val activity = androidx.compose.ui.platform.LocalContext.current as Activity
+    val qrScannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val scan = IntentIntegrator.parseActivityResult(result.resultCode, result.data)
+        val contents = scan?.contents
+        if (result.resultCode == Activity.RESULT_OK && !contents.isNullOrBlank()) {
+            viewModel.connectFromQr(contents)
+        }
+    }
 
     // Permissions check for nearby P2P Wi-Fi
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -133,6 +146,15 @@ fun AppNavigation(viewModel: MainViewModel) {
                 selectedFiles = selectedFiles,
                 onConnectPeer = { peer -> viewModel.connectAndSend(peer) },
                 onAddDirectPeer = { ip -> viewModel.addDirectPeer(ip) },
+                onScanQr = {
+                    val intent = IntentIntegrator(activity)
+                        .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+                        .setPrompt("Receiver ka QR code scan karein")
+                        .setBeepEnabled(true)
+                        .setOrientationLocked(false)
+                        .createScanIntent()
+                    qrScannerLauncher.launch(intent)
+                },
                 onBack = { viewModel.navigateTo(Screen.FILE_PICKER) }
             )
         }
