@@ -5,6 +5,8 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.content.ContentValues
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import java.io.File
 import java.io.FileOutputStream
@@ -92,6 +94,40 @@ object StorageHelper {
             }
         }
         return targetFile
+    }
+
+    fun createReceivedMediaStore(context: Context, fileName: String, mimeType: String): Uri {
+        val safeName = sanitizeFileName(fileName)
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/FKShare")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        return context.contentResolver.insert(MediaStore.Files.getContentUri("external"), values)
+            ?: throw IllegalStateException("Cannot create destination for $safeName")
+    }
+
+    fun openReceivedOutputStream(context: Context, uri: Uri): OutputStream {
+        return context.contentResolver.openOutputStream(uri)
+            ?: throw IllegalStateException("Cannot open destination")
+    }
+
+    fun finalizeReceived(context: Context, uri: Uri) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            context.contentResolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                null,
+                null
+            )
+        }
+    }
+
+    fun deleteReceived(context: Context, uri: Uri) {
+        runCatching { context.contentResolver.delete(uri, null, null) }
     }
 
     fun formatBytes(bytes: Long): String {
