@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -431,17 +432,47 @@ fun MediaListRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Description,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (item.id.startsWith("app:") && item.mimeType == "application/vnd.android.package-archive") {
+                    val context = LocalContext.current
+                    val packageName = item.id.removePrefix("app:")
+                    val appIcon = runCatching {
+                        context.packageManager.getApplicationIcon(packageName)
+                    }.getOrNull()
+                    if (appIcon != null) {
+                        AsyncImage(
+                            model = appIcon,
+                            contentDescription = item.name.removeSuffix(".apk"),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Android,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = when {
+                            item.mimeType.startsWith("image/") -> Icons.Default.Image
+                            item.mimeType.startsWith("video/") -> Icons.Default.Videocam
+                            item.mimeType.startsWith("audio/") -> Icons.Default.Audiotrack
+                            else -> Icons.Default.Description
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
