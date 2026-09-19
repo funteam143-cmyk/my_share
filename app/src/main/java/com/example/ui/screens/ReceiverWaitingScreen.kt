@@ -85,12 +85,10 @@ fun ReceiverWaitingScreen(
         label = "pulse"
     )
 
-    val qrBitmap = remember(localIp, localDeviceName) {
-        if (localIp != "Offline") {
-            QrCodeUtils.createQrBitmap(
-                "FK_SHARE_QR|$localIp|52346|$localDeviceName"
-            ).asImageBitmap()
-        } else null
+    val qrBitmap = remember(localDeviceName) {
+        QrCodeUtils.createQrBitmap(
+            "FK_SHARE_NEARBY|$localDeviceName"
+        ).asImageBitmap()
     }
 
     Scaffold(
@@ -193,14 +191,14 @@ fun ReceiverWaitingScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Dono phones same Wi-Fi ya hotspot par hone chahiye.",
+                    text = "Wi-Fi / hotspot ki zarurat nahi — Nearby connection direct phone-to-phone hoga.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(14.dp))
             } else {
                 Text(
-                    text = "Wi-Fi connect karein taaki receiver QR code ban sake.",
+                    text = "Nearby direct mode ready hai.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.error
                 )
