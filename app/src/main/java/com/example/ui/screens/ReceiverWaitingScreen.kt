@@ -246,7 +246,7 @@ fun ReceiverWaitingScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Local IP: $localIp (Port 52346)",
+                            text = "Nearby Direct • Wi-Fi/Hotspot not required",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
