@@ -1,7 +1,6 @@
 package com.example
 
 import android.Manifest
-import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -30,7 +29,8 @@ import com.example.ui.screens.MainScreen
 import com.example.ui.screens.ReceiverWaitingScreen
 import com.example.ui.screens.TransferScreen
 import com.example.ui.theme.MyApplicationTheme
-import com.journeyapps.barcodescanner.IntentIntegrator
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 class MainActivity : ComponentActivity() {
 
@@ -68,13 +68,9 @@ fun AppNavigation(viewModel: MainViewModel) {
     val progressState by viewModel.transferProgress.collectAsState()
     val lastCompleted by viewModel.lastCompletedTransfer.collectAsState()
 
-    val activity = androidx.compose.ui.platform.LocalContext.current as Activity
-    val qrScannerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val scan = IntentIntegrator.parseActivityResult(result.resultCode, result.data)
-        val contents = scan?.contents
-        if (result.resultCode == Activity.RESULT_OK && !contents.isNullOrBlank()) {
+    val qrScannerLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val contents = result.contents
+        if (!contents.isNullOrBlank()) {
             viewModel.connectFromQr(contents)
         }
     }
@@ -147,13 +143,13 @@ fun AppNavigation(viewModel: MainViewModel) {
                 onConnectPeer = { peer -> viewModel.connectAndSend(peer) },
                 onAddDirectPeer = { ip -> viewModel.addDirectPeer(ip) },
                 onScanQr = {
-                    val intent = IntentIntegrator(activity)
-                        .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-                        .setPrompt("Receiver ka QR code scan karein")
-                        .setBeepEnabled(true)
-                        .setOrientationLocked(false)
-                        .createScanIntent()
-                    qrScannerLauncher.launch(intent)
+                    val options = ScanOptions().apply {
+                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                        setPrompt("Receiver ka QR code scan karein")
+                        setBeepEnabled(true)
+                        setOrientationLocked(false)
+                    }
+                    qrScannerLauncher.launch(options)
                 },
                 onBack = { viewModel.navigateTo(Screen.FILE_PICKER) }
             )
