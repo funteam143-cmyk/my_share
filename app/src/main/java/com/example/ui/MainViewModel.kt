@@ -2,6 +2,8 @@ package com.example.ui
 
 import android.app.Application
 import android.content.ContentUris
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
@@ -15,8 +17,7 @@ import com.example.data.model.SessionState
 import com.example.data.model.TransferItem
 import com.example.data.model.TransferProgressState
 import com.example.data.model.TransferStatus
-import com.example.network.P2pDiscoveryManager
-import com.example.network.TransferEngine
+import com.example.network.NearbyTransferManager
 import com.example.util.NetworkUtils
 import com.example.util.StorageHelper
 import kotlinx.coroutines.Dispatchers
@@ -55,11 +56,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val allRecords: StateFlow<List<TransferRecord>> = repository.allRecords
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val discoveryManager = P2pDiscoveryManager(application, viewModelScope)
-    val transferEngine = TransferEngine(application, viewModelScope)
+    val nearbyManager = NearbyTransferManager(application, viewModelScope)
 
-    val peers: StateFlow<List<PeerDevice>> = discoveryManager.peers
-    val transferProgress: StateFlow<TransferProgressState> = transferEngine.progressState
+    val peers: StateFlow<List<PeerDevice>> = nearbyManager.peers
+    val transferProgress: StateFlow<TransferProgressState> = nearbyManager.progressState
 
     private val _currentScreen = MutableStateFlow(Screen.MAIN)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
@@ -97,13 +97,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun navigateTo(screen: Screen) {
         _currentScreen.value = screen
         if (screen == Screen.DISCOVERY) {
-            discoveryManager.startDiscovery(asReceiver = false)
+            nearbyManager.startDiscovery(asReceiver = false)
         } else if (screen == Screen.RECEIVER_WAITING) {
-            discoveryManager.startDiscovery(asReceiver = true)
             startReceiverServer()
         } else {
             if (_currentScreen.value != Screen.TRANSFER) {
-                discoveryManager.stopDiscovery()
+                nearbyManager.stopDiscovery()
             }
         }
     }
@@ -162,7 +161,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         discoveryManager.stopDiscovery()
         _currentScreen.value = Screen.TRANSFER
 
-        transferEngine.startSender(
+        nearbyManager.startSender(
             targetHost = peer.hostAddress,
             targetPort = peer.port,
             peerDeviceName = peer.name,
@@ -174,23 +173,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startReceiverServer() {
-        transferEngine.startReceiver { finalState ->
+        nearbyManager.startReceiver { finalState ->
             onTransferFinished(finalState)
         }
     }
 
     fun acceptIncomingTransfer() {
-        transferEngine.respondToProposal(true)
+        nearbyManager.respondToProposal(true)
         _currentScreen.value = Screen.TRANSFER
     }
 
     fun declineIncomingTransfer() {
-        transferEngine.respondToProposal(false)
+        nearbyManager.respondToProposal(false)
         _currentScreen.value = Screen.MAIN
     }
 
     fun cancelActiveTransfer() {
-        transferEngine.cancelActiveTransfer()
+        nearbyManager.cancelActiveTransfer()
     }
 
     private fun onTransferFinished(state: TransferProgressState) {
@@ -222,31 +221,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addDirectPeer(ip: String) {
-        discoveryManager.addDirectPeer(ip)
+        peers.value.firstOrNull { it.hostAddress == ip }?.let { nearbyManager.connectToEndpoint(it.id) }
     }
 
     fun connectFromQr(payload: String) {
         val filesToSend = _selectedFiles.value
         if (filesToSend.isEmpty()) return
 
-        val parts = payload.split("|")
-        if (parts.size < 4 || parts[0] != "FK_SHARE_QR") return
-
-        val host = parts[1].trim()
-        val port = parts[2].toIntOrNull() ?: NetworkUtils.DEFAULT_TRANSFER_PORT
-        val name = parts[3].trim().ifEmpty { "FK Share Receiver" }
-        if (host.isEmpty() || port !in 1..65535) return
-
-        connectAndSend(
-            PeerDevice(
-                id = "qr_${host.replace(".", "_")}_$port",
-                name = name,
-                hostAddress = host,
-                port = port,
-                connectionType = com.example.data.model.ConnectionType.LOCAL_WIFI,
-                lastSeen = System.currentTimeMillis()
-            )
-        )
+        nearbyManager.connectFromQr(payload)
     }
 
     private fun loadLocalMedia(tab: MediaTab) {
@@ -338,8 +320,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             } while (cursor.moveToNext() && count < 40)
                         }
                     }
-                    MediaTab.DOCUMENTS, MediaTab.APPS -> {
-                        // Documents / Apps queried or picked via SAF
+                    MediaTab.DOCUMENTS -> {
+                        // Documents are selected through SAF.
+                    }
+                    MediaTab.APPS -> {
+                        val pm = context.packageManager
+                        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                        val apps = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+                            .distinctBy { it.activityInfo.packageName }
+                            .sortedBy { it.loadLabel(pm).toString().lowercase() }
+                        for (resolveInfo in apps.take(200)) {
+                            val appInfo = resolveInfo.activityInfo.applicationInfo
+                            val apk = appInfo.sourceDir?.let(::java.io.File) ?: continue
+                            if (!apk.exists() || apk.length() <= 0L) continue
+                            val label = resolveInfo.loadLabel(pm).toString().ifBlank { appInfo.packageName }
+                            items.add(
+                                TransferItem(
+                                    id = "app:${appInfo.packageName}",
+                                    name = "$label.apk",
+                                    size = apk.length(),
+                                    mimeType = "application/vnd.android.package-archive",
+                                    uri = Uri.fromFile(apk),
+                                    status = TransferStatus.PENDING
+                                )
+                            )
+                        }
                     }
                     else -> {}
                 }
