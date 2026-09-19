@@ -86,6 +86,9 @@ fun AppNavigation(viewModel: MainViewModel) {
         val permissionsToRequest = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionsToRequest.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_ADVERTISE)
             permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
             permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO)
             permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
