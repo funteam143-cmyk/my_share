@@ -161,8 +161,7 @@ class NearbyTransferManager(
     }
 
     fun startSender(
-        targetHost: String,
-        targetPort: Int,
+        peerId: String,
         peerDeviceName: String,
         selectedFiles: List<TransferItem>,
         onTransferComplete: (TransferProgressState) -> Unit
@@ -178,9 +177,7 @@ class NearbyTransferManager(
             items = selectedFiles,
             totalBytes = selectedFiles.sumOf { it.size }
         )
-        val endpoint = _peers.value.firstOrNull { it.name == peerDeviceName }?.id
-            ?: names.entries.firstOrNull { it.value == peerDeviceName }?.key
-            ?: peerDeviceName
+        val endpoint = peerId.ifBlank { _peers.value.firstOrNull { it.name == peerDeviceName }?.id ?: peerDeviceName }
         activeEndpoint = endpoint
         client.requestConnection(localName, endpoint, connectionCallback)
             .addOnFailureListener {
