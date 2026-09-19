@@ -324,26 +324,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             MediaStore.Files.FileColumns.SIZE,
                             MediaStore.Files.FileColumns.MIME_TYPE
                         )
-                        contentResolver.query(
-                            MediaStore.Files.getContentUri("external"),
-                            projection,
-                            "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? AND ${MediaStore.Files.FileColumns.SIZE} > 0",
-                            arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_NONE.toString()),
-                            "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
-                        )?.use { cursor ->
-                            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
-                            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
-                            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
-                            val mimeCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE)
-                            if (cursor.moveToFirst()) {
-                                do {
+                        val seen = hashSetOf<String>()
+                        fun addDocument(id: Long, name: String?, size: Long, mime: String?, uri: Uri) {
+                            if (size <= 0L || name.isNullOrBlank()) return
+                            val safeMime = mime ?: "application/octet-stream"
+                            val lower = name.lowercase()
+                            val isMedia = safeMime.startsWith("image/") || safeMime.startsWith("video/") ||
+                                safeMime.startsWith("audio/") || safeMime == "application/vnd.android.package-archive" ||
+                                lower.endsWith(".apk")
+                            if (isMedia || !seen.add(uri.toString())) return
+                            items.add(TransferItem("document:$id", name, size, safeMime, uri))
+                        }
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            contentResolver.query(
+                                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                projection,
+                                null, null,
+                                "${MediaStore.Downloads.DATE_ADDED} DESC"
+                            )?.use { cursor ->
+                                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+                                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
+                                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
+                                val mimeCol = cursor.getColumnIndex(MediaStore.Downloads.MIME_TYPE)
+                                var count = 0
+                                if (cursor.moveToFirst()) do {
                                     val id = cursor.getLong(idCol)
-                                    val name = cursor.getString(nameCol) ?: "Document_$id"
-                                    val size = cursor.getLong(sizeCol)
-                                    val mime = if (mimeCol != -1) cursor.getString(mimeCol) ?: "application/octet-stream" else "application/octet-stream"
+                                    addDocument(id, cursor.getString(nameCol), cursor.getLong(sizeCol),
+                                        if (mimeCol >= 0) cursor.getString(mimeCol) else null,
+                                        ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id))
+                                    count++
+                                } while (cursor.moveToNext() && count < 300)
+                            }
+                        }
+                        if (items.isEmpty()) {
+                            contentResolver.query(
+                                MediaStore.Files.getContentUri("external"),
+                                projection,
+                                "${MediaStore.Files.FileColumns.SIZE} > 0",
+                                null,
+                                "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+                            )?.use { cursor ->
+                                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+                                val mimeCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE)
+                                var count = 0
+                                if (cursor.moveToFirst()) do {
+                                    val id = cursor.getLong(idCol)
                                     val uri = ContentUris.withAppendedId(MediaStore.Files.getContentUri("external"), id)
-                                    items.add(TransferItem(id = "document:$id", name = name, size = size, mimeType = mime, uri = uri))
-                                } while (cursor.moveToNext())
+                                    addDocument(id, cursor.getString(nameCol), cursor.getLong(sizeCol),
+                                        if (mimeCol >= 0) cursor.getString(mimeCol) else null, uri)
+                                    count++
+                                } while (cursor.moveToNext() && count < 300)
                             }
                         }
                     }
