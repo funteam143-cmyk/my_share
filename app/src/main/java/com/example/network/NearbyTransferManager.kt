@@ -454,8 +454,13 @@ class NearbyTransferManager(
             index++
             if (index >= files.size) return
             val item = files[index]
-            current = item.uri?.let { context.contentResolver.openInputStream(it) }
-                ?: throw IllegalStateException("Cannot open ${item.name}")
+            current = item.uri?.let {
+                if (it.scheme == "file") {
+                    java.io.FileInputStream(it.path ?: throw IllegalStateException("Cannot open ${item.name}"))
+                } else {
+                    context.contentResolver.openInputStream(it)
+                }
+            } ?: throw IllegalStateException("Cannot open ${item.name}")
             digest = MessageDigest.getInstance("SHA-256")
         }
 
