@@ -53,6 +53,48 @@ class NearbyTransferManager(
     private var receiverCompletion: ((TransferProgressState) -> Unit)? = null
     @Volatile private var cancelled = false
 
+    private var metricsStartedNanos = 0L
+    private var metricsLastNanos = 0L
+    private var metricsLastBytes = 0L
+    private var metricsLastUiNanos = 0L
+    private var metricsPeakMBps = 0.0
+
+    private fun beginTransferMetrics() {
+        val now = System.nanoTime()
+        metricsStartedNanos = now
+        metricsLastNanos = now
+        metricsLastBytes = 0L
+        metricsLastUiNanos = 0L
+        metricsPeakMBps = 0.0
+    }
+
+    private fun updateTransferMetrics(transferred: Long, items: List<TransferItem>, force: Boolean = false) {
+        val now = System.nanoTime()
+        if (metricsStartedNanos == 0L) beginTransferMetrics()
+        val elapsed = ((now - metricsStartedNanos).coerceAtLeast(1L)).toDouble() / 1_000_000_000.0
+        val deltaSeconds = ((now - metricsLastNanos).coerceAtLeast(1L)).toDouble() / 1_000_000_000.0
+        val deltaBytes = (transferred - metricsLastBytes).coerceAtLeast(0L)
+        val instantMBps = deltaBytes.toDouble() / deltaSeconds / 1_000_000.0
+        if (instantMBps > metricsPeakMBps) metricsPeakMBps = instantMBps
+        metricsLastNanos = now
+        metricsLastBytes = transferred
+        if (!force && now - metricsLastUiNanos < 200_000_000L) return
+        metricsLastUiNanos = now
+        val averageMBps = transferred.toDouble() / elapsed / 1_000_000.0
+        val total = _progress.value.totalBytes
+        val remainingBytes = (total - transferred).coerceAtLeast(0L)
+        val remainingSeconds = if (averageMBps > 0.001) (remainingBytes / (averageMBps * 1_000_000.0)).toLong() else 0L
+        _progress.value = _progress.value.copy(
+            totalTransferredBytes = transferred,
+            currentSpeedMBps = instantMBps.coerceAtLeast(0.0),
+            peakSpeedMBps = metricsPeakMBps,
+            averageSpeedMBps = averageMBps,
+            remainingSeconds = remainingSeconds,
+            elapsedSeconds = elapsed.toLong(),
+            items = items
+        )
+    }
+
     private val connectionCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
             names[endpointId] = info.endpointName
@@ -276,12 +318,10 @@ class NearbyTransferManager(
     }
 
     private fun sendStream(endpointId: String) {
+        beginTransferMetrics()
         _progress.value = _progress.value.copy(sessionState = SessionState.TRANSFERRING)
         val input = TransferInputStream(context, senderFiles) { transferred ->
-            _progress.value = _progress.value.copy(
-                totalTransferredBytes = transferred,
-                items = progressItems(senderFiles, transferred)
-            )
+            updateTransferMetrics(transferred, progressItems(senderFiles, transferred))
         }
         client.sendPayload(endpointId, Payload.fromStream(input))
             .addOnFailureListener {
@@ -308,6 +348,7 @@ class NearbyTransferManager(
 
     private suspend fun receiveStream(endpointId: String, input: InputStream) {
         try {
+            beginTransferMetrics()
             val data = DataInputStream(BufferedInputStream(input, 256 * 1024))
             if (data.readUTF() != "FK_STREAM") throw IllegalStateException("Invalid transfer stream")
             val count = data.readInt()
@@ -346,11 +387,8 @@ class NearbyTransferManager(
                                 progress = done.toFloat() / meta.size,
                                 transferredBytes = done
                             )
-                            _progress.value = _progress.value.copy(
-                                totalTransferredBytes = overall,
-                                currentItemIndex = i,
-                                items = items.toList()
-                            )
+                            updateTransferMetrics(overall, items.toList())
+                            _progress.value = _progress.value.copy(currentItemIndex = i)
                         }
                         out.flush()
                     }
@@ -375,6 +413,7 @@ class NearbyTransferManager(
                     return
                 }
             }
+            updateTransferMetrics(overall, items.toList(), force = true)
             _progress.value = _progress.value.copy(
                 sessionState = SessionState.COMPLETED,
                 totalTransferredBytes = overall,
