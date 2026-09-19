@@ -318,19 +318,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     MediaTab.DOCUMENTS -> {
-                        // Documents are selected through SAF.
+                        val projection = arrayOf(
+                            MediaStore.Files.FileColumns._ID,
+                            MediaStore.Files.FileColumns.DISPLAY_NAME,
+                            MediaStore.Files.FileColumns.SIZE,
+                            MediaStore.Files.FileColumns.MIME_TYPE
+                        )
+                        contentResolver.query(
+                            MediaStore.Files.getContentUri("external"),
+                            projection,
+                            "${MediaStore.Files.FileColumns.MEDIA_TYPE} = ? AND ${MediaStore.Files.FileColumns.SIZE} > 0",
+                            arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE_NONE.toString()),
+                            "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+                        )?.use { cursor ->
+                            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+                            val mimeCol = cursor.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE)
+                            if (cursor.moveToFirst()) {
+                                do {
+                                    val id = cursor.getLong(idCol)
+                                    val name = cursor.getString(nameCol) ?: "Document_$id"
+                                    val size = cursor.getLong(sizeCol)
+                                    val mime = if (mimeCol != -1) cursor.getString(mimeCol) ?: "application/octet-stream" else "application/octet-stream"
+                                    val uri = ContentUris.withAppendedId(MediaStore.Files.getContentUri("external"), id)
+                                    items.add(TransferItem(id = "document:$id", name = name, size = size, mimeType = mime, uri = uri))
+                                } while (cursor.moveToNext())
+                            }
+                        }
                     }
                     MediaTab.APPS -> {
                         val pm = context.packageManager
-                        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                        val apps = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-                            .distinctBy { it.activityInfo.packageName }
+                        val apps = pm.getInstalledApplications(PackageManager.MATCH_ALL)
+                            .asSequence()
+                            .filter { it.sourceDir != null }
+                            .distinctBy { it.packageName }
                             .sortedBy { it.loadLabel(pm).toString().lowercase() }
-                        for (resolveInfo in apps.take(200)) {
-                            val appInfo = resolveInfo.activityInfo.applicationInfo
+                            .toList()
+                        for (appInfo in apps) {
                             val apk = appInfo.sourceDir?.let(::File) ?: continue
                             if (!apk.exists() || apk.length() <= 0L) continue
-                            val label = resolveInfo.loadLabel(pm).toString().ifBlank { appInfo.packageName }
+                            val label = appInfo.loadLabel(pm).toString().ifBlank { appInfo.packageName }
                             items.add(
                                 TransferItem(
                                     id = "app:${appInfo.packageName}",
