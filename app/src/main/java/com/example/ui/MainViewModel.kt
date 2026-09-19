@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -327,7 +328,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             .sortedBy { it.loadLabel(pm).toString().lowercase() }
                         for (resolveInfo in apps.take(200)) {
                             val appInfo = resolveInfo.activityInfo.applicationInfo
-                            val apk = appInfo.sourceDir?.let(::java.io.File) ?: continue
+                            val apk = appInfo.sourceDir?.let(::File) ?: continue
                             if (!apk.exists() || apk.length() <= 0L) continue
                             val label = resolveInfo.loadLabel(pm).toString().ifBlank { appInfo.packageName }
                             items.add(
