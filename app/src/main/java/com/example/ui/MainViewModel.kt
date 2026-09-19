@@ -158,17 +158,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val filesToSend = _selectedFiles.value
         if (filesToSend.isEmpty()) return
 
-        discoveryManager.stopDiscovery()
+        nearbyManager.stopDiscovery()
         _currentScreen.value = Screen.TRANSFER
-
         nearbyManager.startSender(
-            targetHost = peer.hostAddress,
-            targetPort = peer.port,
+            peerId = peer.id,
             peerDeviceName = peer.name,
             selectedFiles = filesToSend,
-            onTransferComplete = { finalState ->
-                onTransferFinished(finalState)
-            }
+            onTransferComplete = { finalState -> onTransferFinished(finalState) }
         )
     }
 
