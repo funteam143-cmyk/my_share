@@ -226,7 +226,7 @@ fun DiscoveryScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Receiver par QR dikhega — dono phones same Wi-Fi / Hotspot par rakhein",
+                text = "Receiver par QR dikhega — Nearby direct connection, Wi-Fi/Hotspot ki zarurat nahi",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -401,7 +401,7 @@ fun PeerDeviceRow(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "${peer.hostAddress} • Wi-Fi P2P Ready",
+                        text = "Nearby direct • QR / device connection",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
