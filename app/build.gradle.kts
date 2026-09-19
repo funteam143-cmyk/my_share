@@ -69,6 +69,7 @@ dependencies {
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+  implementation("com.google.android.gms:play-services-nearby:19.3.0")
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
