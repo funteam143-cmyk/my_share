@@ -48,6 +48,8 @@ class NearbyTransferManager(
     private val names = ConcurrentHashMap<String, String>()
     private var receiverMode = false
     private var activeEndpoint: String? = null
+    @Volatile private var expectedReceiverName: String? = null
+    @Volatile private var connectionRequestInFlight = false
     private var senderFiles: List<TransferItem> = emptyList()
     private var senderCompletion: ((TransferProgressState) -> Unit)? = null
     private var receiverCompletion: ((TransferProgressState) -> Unit)? = null
@@ -111,6 +113,8 @@ class NearbyTransferManager(
                 return
             }
             activeEndpoint = endpointId
+            connectionRequestInFlight = false
+            expectedReceiverName = null
             upsertPeer(endpointId, names[endpointId] ?: "Nearby Device")
             if (!receiverMode && senderFiles.isNotEmpty()) {
                 scope.launch { sendProposal(endpointId) }
@@ -134,6 +138,14 @@ class NearbyTransferManager(
             if (info.serviceId != serviceId) return
             names[endpointId] = info.endpointName
             upsertPeer(endpointId, info.endpointName)
+
+            val wanted = expectedReceiverName
+            if (!receiverMode && wanted != null &&
+                wanted.equals(info.endpointName.trim(), ignoreCase = true) &&
+                activeEndpoint == null && !connectionRequestInFlight
+            ) {
+                connectToEndpoint(endpointId)
+            }
         }
         override fun onEndpointLost(endpointId: String) = removePeer(endpointId)
     }
@@ -161,6 +173,11 @@ class NearbyTransferManager(
 
     fun startDiscovery(asReceiver: Boolean) {
         stopDiscovery()
+        activeEndpoint?.let { client.disconnectFromEndpoint(it) }
+        activeEndpoint = null
+        connectionRequestInFlight = false
+        expectedReceiverName = null
+        names.clear()
         cancelled = false
         receiverMode = asReceiver
         _peers.value = emptyList()
@@ -231,9 +248,13 @@ class NearbyTransferManager(
     }
 
     fun connectToEndpoint(endpointId: String) {
+        if (connectionRequestInFlight || activeEndpoint == endpointId) return
         activeEndpoint = endpointId
+        connectionRequestInFlight = true
         client.requestConnection(localName, endpointId, connectionCallback)
             .addOnFailureListener {
+                connectionRequestInFlight = false
+                activeEndpoint = null
                 _progress.value = _progress.value.copy(
                     sessionState = SessionState.ERROR,
                     errorMessage = "Connection request failed"
@@ -244,7 +265,23 @@ class NearbyTransferManager(
     fun connectFromQr(payload: String) {
         val p = payload.split("|")
         if (p.size < 2 || p[0] != "FK_SHARE_NEARBY") return
-        _peers.value.firstOrNull { it.name == p[1].trim() }?.let { connectToEndpoint(it.id) }
+
+        val receiverName = p[1].trim()
+        if (receiverName.isBlank()) return
+
+        expectedReceiverName = receiverName
+        receiverMode = false
+        cancelled = false
+
+        val existing = _peers.value.firstOrNull {
+            it.name.equals(receiverName, ignoreCase = true)
+        }
+        if (existing != null) {
+            connectToEndpoint(existing.id)
+        } else {
+            startDiscovery(asReceiver = false)
+            expectedReceiverName = receiverName
+        }
     }
 
     private suspend fun sendProposal(endpointId: String) {
@@ -438,6 +475,9 @@ class NearbyTransferManager(
         )
         senderFiles = emptyList()
         activeEndpoint = null
+        expectedReceiverName = null
+        connectionRequestInFlight = false
+        names.clear()
     }
 
     private fun upsertPeer(id: String, name: String) {
