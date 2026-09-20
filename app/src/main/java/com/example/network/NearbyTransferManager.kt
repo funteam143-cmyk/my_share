@@ -472,6 +472,8 @@ class NearbyTransferManager(
         private var header: ByteArray? = null
         private var headerPos = 0
         private var total = 0L
+        private var lastReportedTotal = 0L
+        private var lastReportedNanos = 0L
         private var closed = false
 
         private fun ensureHeader() {
@@ -529,7 +531,13 @@ class NearbyTransferManager(
                     if (n >= 0) {
                         digest!!.update(b, off, n)
                         total += n
-                        onProgress(total)
+                        // Throttle progress callbacks; updating Compose on every read can throttle the actual transfer.
+                        val now = System.nanoTime()
+                        if (total - lastReportedTotal >= 1_048_576L || now - lastReportedNanos >= 250_000_000L) {
+                            lastReportedTotal = total
+                            lastReportedNanos = now
+                            onProgress(total)
+                        }
                         return n
                     }
                     current!!.close()
